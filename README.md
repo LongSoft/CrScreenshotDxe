@@ -9,13 +9,13 @@ This DXE driver tries to register keyboard shortcut (LCtrl + LAlt + F12) handler
 The main goal is to be able to make BIOS Setup screenshots for systems without serial console redirection support, but it can also be used to take screenshot from UEFI shell apps and UEFI bootloaders. 
 
 To start the driver, you can either:
-- Integrate it into DXE volume of your UEFI firmware using [UEFITool](https://github.com/LongSoft/UEFITool) or any other suitable software
+- Integrate it into DXE volume of your UEFI firmware using [UEFITool](https://github.com/LongSoft/UEFITool) or any other suitable software (don't forget a DepEx section to prevent too early start)
 - Add it to an OptionROM of a PCIe device (will try it once I have a device needed)
 - Let BDS dispatcher load it by copying it to ESP and creating a DriverXXXX variable
 - Load it from UEFI Shell with load command
 
 ## Build
-It's a normal EDK2-compatible DXE driver, just add it to your package's DSC file to include in it's build process.
+It's a normal EDK2-compatible DXE driver, just add it to your package's DSC file to include in build process.
 
 ## Usage
 Load the driver, insert FAT32-formatted USB drive and press LCtrl + LAlt + F12 to take a screenshot from all GOP-compatible graphic consoles available at the moment. 
