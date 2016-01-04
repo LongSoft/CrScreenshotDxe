@@ -2,7 +2,7 @@
   INF_VERSION                    = 0x00010005
   BASE_NAME                      = CrScreenshotDxe
   FILE_GUID                      = cab058df-e938-4f85-8978-1f7e6aabdb96
-  MODULE_TYPE                    = UEFI_DRIVER
+  MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
   ENTRY_POINT                    = CrScreenshotDxeEntry
 
