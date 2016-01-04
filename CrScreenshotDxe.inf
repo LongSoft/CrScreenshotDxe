@@ -1,0 +1,36 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = CrScreenshotDxe
+  FILE_GUID                      = cab058df-e938-4f85-8978-1f7e6aabdb96
+  MODULE_TYPE                    = UEFI_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = CrScreenshotDxeEntry
+
+[Sources.common]
+  CrScreenshotDxe.c
+  lodepng.h
+  lodepng.c
+  qsort.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  UefiDriverEntryPoint
+  DebugLib
+  PrintLib
+
+[Protocols]
+  gEfiGraphicsOutputProtocolGuid
+  gEfiSimpleTextInputExProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+
+[Depex]
+  gEfiGraphicsOutputProtocolGuid AND
+  gEfiSimpleTextInputExProtocolGuid
+
+[BuildOptions]
+  MSFT:*_*_*_CC_FLAGS            = /GL- /Oi- /wd4244 /wd4267 /wd4334 /wd4245
