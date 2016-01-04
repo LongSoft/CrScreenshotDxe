@@ -1,5 +1,5 @@
 # CrScreenshotDxe
-UEFI DXE driver to take screenshots from GOP-compatible graphic console.
+UEFI DXE driver to take screenshots from GOP-compatible graphic consoles.
 
 [This blog post in Russian](http://habrahabr.ru/post/274463/) explains more, here is just a description and usage.
 
@@ -22,7 +22,7 @@ Load the driver, insert FAT32-formatted USB drive and press LCtrl + LAlt + F12 t
 
 To indicate it's status, the driver shows a small colored rectangle in top-left corner of the screen for half a second.
 
-Square color codes:
+Rectangle color codes:
 - White  - driver is loaded
 - Yellow - no writable FS found, screenshot is not taken
 - Blue   - current GOP is pitch black, screenshot is not taken
