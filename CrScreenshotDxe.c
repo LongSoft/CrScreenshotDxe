@@ -275,7 +275,7 @@ TakeScreenshot (
         if (Image)
             gBS->FreePool(Image);
         if (PngFile)
-            gBS->FreePool(PngFile);
+            lodepng_free(PngFile);
         Image = NULL;
         PngFile = NULL;
     }

@@ -10,7 +10,6 @@
   CrScreenshotDxe.c
   lodepng.h
   lodepng.c
-  qsort.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -33,4 +32,5 @@
   gEfiSimpleTextInputExProtocolGuid
 
 [BuildOptions]
-  MSFT:*_*_*_CC_FLAGS            = /GL- /Oi- /wd4244 /wd4267 /wd4334 /wd4245
+  MSFT:*_*_*_CC_FLAGS            = /wd4244 /wd4267 /wd4334 /wd4245
+  *_*_*_CC_FLAGS                 = -D LODEPNG_UEFI_MODE
