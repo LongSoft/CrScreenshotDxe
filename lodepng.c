@@ -645,9 +645,7 @@ static void HuffmanTree_draw(HuffmanTree* tree)
 
 static void HuffmanTree_init(HuffmanTree* tree)
 {
-  tree->tree2d = 0;
-  tree->tree1d = 0;
-  tree->lengths = 0;
+  memset(tree, 0, sizeof(*tree));
 }
 
 static void HuffmanTree_cleanup(HuffmanTree* tree)
@@ -4454,7 +4452,7 @@ static void Adam7_deinterlace(unsigned char* out, const unsigned char* in, unsig
       for(x = 0; x < passw[i]; ++x)
       {
         ibp = (8 * passstart[i]) + (y * ilinebits + x * bpp);
-        obp = (ADAM7_IY[i] + y * ADAM7_DY[i]) * olinebits + (ADAM7_IX[i] + x * ADAM7_DX[i]) * bpp;
+        obp = (ADAM7_IY[i] + (size_t)y * ADAM7_DY[i]) * olinebits + (ADAM7_IX[i] + (size_t) x * ADAM7_DX[i]) * bpp;
         for(b = 0; b < bpp; ++b)
         {
           unsigned char bit = readBitFromReversedStream(&ibp, in);

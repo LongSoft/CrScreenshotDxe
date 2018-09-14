@@ -33,6 +33,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <Protocol/SimpleFileSystem.h>
 
 #include "lodepng.h" //PNG encoding library
+#include "AppleEventMin.h" // Mac-specific keyboard input
+
+STATIC
+EFI_GUID
+mAppleEventProtocolGuid = APPLE_EVENT_PROTOCOL_GUID;
 
 EFI_STATUS
 EFIAPI
@@ -287,6 +292,28 @@ TakeScreenshot (
     return EFI_SUCCESS;
 }
 
+VOID
+EFIAPI
+AppleEventKeyHandler (
+  IN APPLE_EVENT_INFORMATION  *Information,
+  IN VOID                     *NotifyContext
+  )
+{
+    // Mark the context argument as used
+    (VOID) NotifyContext;
+
+    // Ignore invalid information if it happened to arrive
+    if (Information == NULL || (Information->EventType & APPLE_EVENT_TYPE_KEY_UP) == 0) {
+        return;
+    }
+
+    // Apple calls ALT key by the name of OPTION key
+    if (Information->KeyData->InputKey.ScanCode == SCAN_F12
+        && Information->Modifiers == (APPLE_MODIFIER_LEFT_CONTROL|APPLE_MODIFIER_LEFT_OPTION)) {
+        // Take a screenshot
+        TakeScreenshot (NULL);
+    }
+}
 
 EFI_STATUS
 EFIAPI
@@ -295,54 +322,99 @@ CrScreenshotDxeEntry (
     IN EFI_SYSTEM_TABLE   *SystemTable
     )
 {
-    EFI_STATUS   Status;
-    EFI_KEY_DATA KeyStroke;
-    UINTN        HandleCount;
-    EFI_HANDLE   *HandleBuffer = NULL;
-    UINTN        i;
-    
-    // Set keystroke to be LCtrl+LAlt+F12
-    KeyStroke.Key.ScanCode = SCAN_F12;
-    KeyStroke.Key.UnicodeChar = 0;
-    KeyStroke.KeyState.KeyShiftState = EFI_SHIFT_STATE_VALID | EFI_LEFT_CONTROL_PRESSED | EFI_LEFT_ALT_PRESSED;
-    KeyStroke.KeyState.KeyToggleState = 0;
-    
-    // Locate all SimpleTextInEx protocols
-    Status = gBS->LocateHandleBuffer(ByProtocol, &gEfiSimpleTextInputExProtocolGuid, NULL, &HandleCount, &HandleBuffer);
-    if (EFI_ERROR (Status)) {
-        DEBUG((-1, "CrScreenshotDxeEntry: gBS->LocateHandleBuffer returned %r\n", Status));
-        return EFI_UNSUPPORTED;
-    }
-    
-    // For each instance
-    for (i = 0; i < HandleCount; i++) {
-        EFI_HANDLE Handle;
-        EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *SimpleTextInEx;
-        
-        // Get protocol handle
-        Status = gBS->HandleProtocol (HandleBuffer[i], &gEfiSimpleTextInputExProtocolGuid, (VOID **) &SimpleTextInEx);
-        if (EFI_ERROR (Status)) {
-           DEBUG((-1, "CrScreenshotDxeEntry: gBS->HandleProtocol[%d] returned %r\n", i, Status));
-           continue;
-        }
-        
-        // Register key notification function
-        Status = SimpleTextInEx->RegisterKeyNotify(
-                SimpleTextInEx, 
-                &KeyStroke, 
-                TakeScreenshot, 
-                &Handle);
-        if (EFI_ERROR (Status)) {
-            DEBUG((-1, "CrScreenshotDxeEntry: SimpleTextInEx->RegisterKeyNotify[%d] returned %r\n", i, Status));
-        }
-    }
-    
-    // Free memory used for handle buffer
-    if (HandleBuffer)
-        gBS->FreePool(HandleBuffer);
+    EFI_STATUS                        Status;
+    UINTN                             HandleCount = 0;
+    EFI_HANDLE                        *HandleBuffer = NULL;
+    UINTN                             Index;
+    EFI_KEY_DATA                      SimpleTextInExKeyStroke;
+    EFI_HANDLE                        SimpleTextInExHandle;
+    EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *SimpleTextInEx;
+    APPLE_EVENT_HANDLE                AppleEventHandle;
+    APPLE_EVENT_PROTOCOL              *AppleEvent;
+    BOOLEAN                           Installed = FALSE;
 
-    // Show success
-    ShowStatus(0xFF, 0xFF, 0xFF); //White
-    
+    // Set keystroke to be LCtrl+LAlt+F12
+    SimpleTextInExKeyStroke.Key.ScanCode = SCAN_F12;
+    SimpleTextInExKeyStroke.Key.UnicodeChar = 0;
+    SimpleTextInExKeyStroke.KeyState.KeyShiftState = EFI_SHIFT_STATE_VALID | EFI_LEFT_CONTROL_PRESSED | EFI_LEFT_ALT_PRESSED;
+    SimpleTextInExKeyStroke.KeyState.KeyToggleState = 0;
+
+    // Locate compatible protocols, firstly try SimpleTextInEx, otherwise use AppleEvent
+    Status = gBS->LocateHandleBuffer (ByProtocol, &gEfiSimpleTextInputExProtocolGuid, NULL, &HandleCount, &HandleBuffer);
+    if (!EFI_ERROR (Status)) {
+        // For each instance
+        for (Index = 0; Index < HandleCount; Index++) {
+            Status = gBS->HandleProtocol (HandleBuffer[Index], &gEfiSimpleTextInputExProtocolGuid, (VOID **) &SimpleTextInEx);
+
+            // Get protocol handle
+            if (EFI_ERROR (Status)) {
+               DEBUG ((-1, "CrScreenshotDxeEntry: gBS->HandleProtocol[%d] SimpleTextInputEx returned %r\n", Index, Status));
+               continue;
+            }
+
+            // Register key notification function
+            Status = SimpleTextInEx->RegisterKeyNotify (
+                    SimpleTextInEx,
+                    &SimpleTextInExKeyStroke,
+                    TakeScreenshot,
+                    &SimpleTextInExHandle
+                    );
+            if (!EFI_ERROR (Status)) {
+                Installed = TRUE;
+            } else {
+                DEBUG ((-1, "CrScreenshotDxeEntry: SimpleTextInEx->RegisterKeyNotify[%d] returned %r\n", Index, Status));
+            }
+        }
+    } else {
+        DEBUG((-1, "CrScreenshotDxeEntry: gBS->LocateHandleBuffer SimpleTextInputEx returned %r\n", Status));
+        HandleBuffer = NULL;
+        Status = gBS->LocateHandleBuffer (ByProtocol, &mAppleEventProtocolGuid, NULL, &HandleCount, &HandleBuffer);
+        if (EFI_ERROR (Status)) {
+            DEBUG ((-1, "CrScreenshotDxeEntry: gBS->LocateHandleBuffer AppleEvent returned %r\n", Status));
+            return EFI_UNSUPPORTED;
+        }
+
+        // Traverse AppleEvent handles similarly to SimpleTextInputEx
+        for (Index = 0; Index < HandleCount; Index++) {
+            Status = gBS->HandleProtocol (HandleBuffer[Index], &mAppleEventProtocolGuid, (VOID **) &AppleEvent);
+
+            // Get protocol handle
+            if (EFI_ERROR (Status)) {
+               DEBUG ((-1, "CrScreenshotDxeEntry: gBS->HandleProtocol[%d] AppleEvent returned %r\n", Index, Status));
+               continue;
+            }
+
+            // Check protocol interface compatibility
+            if (AppleEvent->Revision < APPLE_EVENT_PROTOCOL_REVISION) {
+                DEBUG ((-1, "CrScreenshotDxeEntry: AppleEvent[%d] has outdated revision %d, expected %d\n",
+                    Index, AppleEvent->Revision, APPLE_EVENT_PROTOCOL_REVISION));
+                continue;
+            }
+
+            // Register key handler, which will later determine LCtrl+LAlt+F12 combination
+            Status = AppleEvent->RegisterHandler (
+                    APPLE_EVENT_TYPE_KEY_UP,
+                    AppleEventKeyHandler,
+                    &AppleEventHandle,
+                    NULL
+                    );
+            if (!EFI_ERROR (Status)) {
+                Installed = TRUE;
+            } else {
+                DEBUG((-1, "CrScreenshotDxeEntry: AppleEvent->RegisterHandler[%d] returned %r\n", Index, Status));
+            }
+        }
+    }
+
+    // Free memory used for handle buffer
+    if (HandleBuffer) {
+        gBS->FreePool(HandleBuffer);
+    }
+
+    // Show success only when we found at least one working implementation
+    if (Installed) {
+        ShowStatus(0xFF, 0xFF, 0xFF); //White
+    }
+
     return EFI_SUCCESS;
 }
