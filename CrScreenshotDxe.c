@@ -176,6 +176,14 @@ TakeScreenshot (
     EFI_TIME   Time;
     UINTN      i, j;
 
+    // This is required to avoid assert (only noticeable on firmware compiled to
+    // assert) from gBS->RaiseTPL(TPL_CALLBACK) within the file system accesses
+    // below. Makes explicit what was happening anyway, which is that we're
+    // effectively lowering the TPL for a long running task, during a keyboard
+    // interrupt.
+    // REF: https://github.com/acidanthera/audk/blob/bcdcc4160d7460c46c08c9395aae81be44ef23a9/FatPkg/EnhancedFatDxe/Misc.c#L399
+    gBS->RestoreTPL (TPL_CALLBACK);
+  
     // Find writable FS
     Status = FindWritableFs(&Fs);
     if (EFI_ERROR (Status)) {
